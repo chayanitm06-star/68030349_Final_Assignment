@@ -30,6 +30,7 @@ wokwi/               diagram-suite-pins.json = ชุด pin แบบ Suite (18
 test/host/      runner เทสต์บน PC + ESP-IDF stub (เขียนเอง ไม่ต้องมี ESP-IDF)
 test/test_clock_core/  โปรเจกต์ ESP-IDF สำหรับรัน Unity test บนบอร์ด
 docs/REPORT.md  รายงานฉบับเต็ม
+docs/screenshots/  ภาพหน้าจอจากการรันใน Wokwi (01–08 เรียงตามเวลา)
 ```
 
 ## การ Build และรัน
@@ -56,6 +57,28 @@ docs/REPORT.md  รายงานฉบับเต็ม
 
 ทางลัดแบบคำสั่งเดียว: `pip install idf-wokwi` + `WOKWI_CLI_TOKEN` แล้ว `idf.py wokwi` (ESP-IDF ≥ 6.0)
 รายละเอียดทุกวิธี + checklist + เรื่อง Wi-Fi/NTP อยู่ที่ [`docs/REPORT.md` หัวข้อ 5.4](docs/REPORT.md)
+
+## ภาพหน้าจอ (Screenshots)
+
+ภาพหน้าจอจากการรันใน **Wokwi for VS Code** — เรียงตามลำดับเวลาที่บันทึกจริง (เต็มจอ 1920×1140)
+
+| # | ไฟล์ | บันทึกเมื่อ |
+| --- | --- | --- |
+| 1 | [`docs/screenshots/01-wokwi-run.png`](docs/screenshots/01-wokwi-run.png) | 22:14:23 |
+| 2 | [`docs/screenshots/02-wokwi-run.png`](docs/screenshots/02-wokwi-run.png) | 22:14:29 |
+| 3 | [`docs/screenshots/03-wokwi-run.png`](docs/screenshots/03-wokwi-run.png) | 22:14:36 |
+| 4 | [`docs/screenshots/04-wokwi-run.png`](docs/screenshots/04-wokwi-run.png) | 22:14:43 |
+| 5 | [`docs/screenshots/05-wokwi-run.png`](docs/screenshots/05-wokwi-run.png) | 22:15:12 |
+| 6 | [`docs/screenshots/06-wokwi-run.png`](docs/screenshots/06-wokwi-run.png) | 22:15:47 |
+| 7 | [`docs/screenshots/07-wokwi-run.png`](docs/screenshots/07-wokwi-run.png) | 22:17:23 |
+| 8 | [`docs/screenshots/08-wokwi-run.png`](docs/screenshots/08-wokwi-run.png) | 22:18:06 |
+
+> รูปทั้งหมดบันทึกในรอบทดสอบเดียวกัน (22:14–22:18) หลังแก้บั๊กปุ่มและบั๊กจอ OLED
+> — ชื่อไฟล์เรียงตามเวลาที่ถ่าย ไม่ได้ระบุโหมดบนจอ
+
+ตัวอย่าง (รูปแรกของชุด):
+
+![Wokwi run 01](docs/screenshots/01-wokwi-run.png)
 
 ## ปุ่มควบคุม
 
@@ -100,6 +123,7 @@ docs/REPORT.md  รายงานฉบับเต็ม
 | Wokwi ต่อ Wi-Fi ไม่ได้ (SSID `iotexpo` ไม่มีในตัวจำลอง) | เพิ่ม SSID สำรอง `Wokwi-GUEST` (ไม่มีรหัส) ใน `main/ClockConfig.hpp` → ถ้าต่อหลักไม่สำเร็จจะสลับไปใช้อัตโนมัติ |
 | ไม่มี ESP-IDF/บอร์ดในเครื่องพัฒนา | เขียน ESP-IDF stub เองที่ `test/host/stubs/` (อ้างอิง header จริงของ v6.0) + ใช้ `python -m ziglang c++` เป็น host compiler |
 | กดปุ่มใน Wokwi แล้วไม่มีอะไรเกิดขึ้นเลย | 3 จุดที่แก้แล้ว: (1) log ของปุ่มใช้ `ESP_LOGD` ซึ่งถูกซ่อนที่ระดับ log เริ่มต้นของ ESP-IDF (INFO) → เปลี่ยนเป็น `ESP_LOGI`; (2) ตัวกรอง debounce **ทิ้ง** release edge ที่มาถึงภายใน 50 ms ของ press edge → การคลิกเมาส์ที่สั้นกว่า 50 ms (แบบที่กดใน Wokwi) จะหายไปทั้งคลิป → เปลี่ยนเป็น "เลื่อนการตัดสินใจ" (defer) แล้วค่อยยืนยันใน `update()`; (3) เพิ่มการ poll ระดับสัญญาณ GPIO เป็น fallback สำหรับกรณี edge หาย → ดูหัวข้อ 13 ใน `docs/REPORT.md` |
+| จอ OLED ค้างว่าง ไม่มีอะไรขึ้นเลย | `flush()` เดิมส่ง **คำสั่งและพิกเซลรวมกันใน I²C transaction เดียว** (`0x00` + คำสั่ง + `0x40` + พิกเซล 1024 ไบต์) แต่ SSD1306 ตรวจ control byte เฉพาะ **ต้น transaction** → ไบต์ `0x40` กับพิกเซลทั้งหมดถูกอ่านเป็นคำสั่ง → ตัวควบคุมจอไม่เคยได้รับพิกเซล → **แก้แล้ว**: แยกเป็น 2 transaction (ชุดคำสั่ง `0x21/0x22` แล้วส่งพิกเซลทีละหน้า 128 ไบต์) → ดูหัวข้อ 14 ใน `docs/REPORT.md` |
 
 ## หมายเหตุ
 

@@ -22,6 +22,12 @@ public:
     static constexpr uint16_t kBufferSize = Display::kFramebufferBytes;  // 1024 bytes
     static constexpr uint8_t kDefaultAddress = 0x3C;
 
+    /** @brief Number of bytes of one display page (one row of 8 pixels). */
+    static constexpr uint8_t kPageBytes = kWidth;
+
+    /** @brief Number of pages of the panel (64 / 8). */
+    static constexpr uint8_t kPageCount = kHeight / 8;
+
     /** @brief SSD1306 control bytes. */
     enum ControlByte : uint8_t {
         kControlCommand = 0x00,  ///< Co = 0, D/C# = 0 -> the following bytes are commands.
@@ -62,7 +68,10 @@ public:
 
 private:
     uint8_t m_buffer[kBufferSize]{};
-    uint8_t m_frame[kBufferSize + 8]{};  ///< Command prefix + frame buffer used by flush().
+    uint8_t m_frame[kPageBytes + 1]{};  ///< Data control byte + one page of pixels.
+
+    /** @brief Number of failed flushes (diagnostics). */
+    uint32_t m_flushErrorCount{0};
 };
 
 }  // namespace Clock
