@@ -7,6 +7,8 @@
 #include <cstdint>
 
 #include "Interfaces.hpp"
+// "esp_timer_get_time()" is declared by the ESP-IDF esp_timer component.
+#include "esp_timer.h"
 
 namespace Clock {
 

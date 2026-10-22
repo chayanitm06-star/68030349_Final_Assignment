@@ -192,9 +192,10 @@ extern "C" void app_main() {
         ESP_LOGE(kTag, "I2C initialisation failed - halting");
         return;
     }
-    // "Config::kI2cPort" and the pin numbers are enums / driver specific
-    // types - they are cast to int explicitly so that the log call never
-    // depends on an implicit type conversion.
+    // "Config::kI2cPort" is the real member of "struct Clock::Config"
+    // (ClockConfig.hpp) and the pin numbers are driver specific enums - they
+    // are cast to int explicitly so that the log call never depends on an
+    // implicit type conversion.
     ESP_LOGI(kTag, "I2C bus ready (port=%d, SDA=%d, SCL=%d, %u Hz)",
              static_cast<int>(Config::kI2cPort), static_cast<int>(Config::kI2cSdaPin),
              static_cast<int>(Config::kI2cSclPin), static_cast<unsigned>(Config::kI2cClockHz));

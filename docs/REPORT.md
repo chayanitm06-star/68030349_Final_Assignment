@@ -706,3 +706,33 @@ wokwi-cli .
       (host stub ที่ `test/host/stubs/` ทำให้ `std::printf` → จึงตรวจจับ mismatch ได้ตอน type-check)
     * ข้อมูลอ้างอิงเพิ่ม: ใน ESP-IDF v6 `i2c_port_num_t` คือ `typedef int` (ไม่ใช่ enum)
       และ `gpio_num_t` มาจาก `hal/gpio_types.h` → การ cast เป็น `int` จึงปลอดภัยทุกกรณี
+12. **header ที่ประกาศชนิดข้อมูลต้องถูก include เอง (bug ที่เจอตอน build จริง)** — 3 อาการที่เจอ
+    ตอน `idf.py build` บน ESP-IDF v6:
+    * `main/ClockConfig.hpp` — error `unknown type name 'i2c_port_num_t'` และ
+      `use of undeclared identifier 'I2C_NUM_0'` เพราะไฟล์นี้ประกาศค่า I²C
+      (`static constexpr i2c_port_num_t kI2cPort = I2C_NUM_0;`) แต่ include แค่ `driver/gpio.h`
+    * `main/drivers/EspTimerSource.hpp` — error `use of undeclared identifier 'esp_timer_get_time'`
+      เพราะเป็น header-only class ที่ไม่ได้ include `esp_timer.h`
+    * `main/main.cpp` — error `'struct Clock::Config' has no member named 'kI2cPort'`
+      **เป็นอาการล้าน (cascade) ของ error แรก** GCC พิมพ์ namespace เป็น "struct"
+      ในข้อความ "has no member named" เสมอ เมื่อ `ClockConfig.hpp` parse ไม่ผ่าน
+      สมาชิก `kI2cPort` จึงถูกมองว่าไม่มีอยู่จริง → แก้ที่ต้นเหตุแล้ว error นี้จะหายเอง
+
+    **วิธีแก้ (ทำไว้แล้วในรุ่นนี้)**
+    * `main/ClockConfig.hpp` — เพิ่ม `#include "driver/i2c_master.h"`
+      (chain: `driver/i2c_master.h` → `driver/i2c_types.h` → `hal/i2c_types.h`
+      ซึ่งประกาศ `i2c_port_num_t` และค่าคงที่ `I2C_NUM_0` / `I2C_NUM_1`)
+      พร้อมกับ `REQUIRES esp_driver_i2c` ใน `main/CMakeLists.txt` (มีอยู่แล้ว)
+    * `main/drivers/EspTimerSource.hpp` — เพิ่ม `#include "esp_timer.h"`
+    * `main/ClockConfig.hpp` — เปลี่ยน `namespace Config` เป็น **`struct Config`** ที่มีสมาชิก
+      `static constexpr` (C++17 ถือเป็น inline อยู่แล้ว) → `Config::kI2cPort` และ `Config::kXxx`
+      ทุกจุดใน `main.cpp` (34 จุด) และ `ButtonManager.cpp` (9 จุด) ใช้งานได้เหมือนเดิมทุกประการ
+      แต่ตอนนี้สมาชิกเป็น "ของจริง" ของ `struct Clock::Config` → ถ้าพิมพ์ชื่อผิด
+      compiler จะชี้จุดผิดพลาดให้ตรงที่สุด
+    * **host stub เข้มขึ้นให้เหมือน ESP-IDF จริง** เพื่อกัน bug ชนิดนี้ไม่หลุดออกไป:
+      ย้าย `i2c_port_num_t` / `I2C_NUM_0` / API ของ I²C ออกจาก `test/host/stubs/esp_idf_stub.hpp`
+      ไปไว้ใน `test/host/stubs/driver/i2c_master.h` และย้าย `esp_timer_get_time()`
+      ไปไว้ใน `test/host/stubs/esp_timer.h` → ถ้าลบ include ออกจากโค้ดจริง
+      type-check จะ fail ทันที (ยืนยันแล้วว่าได้ error ตรงกับ ESP-IDF จริงทุกข้อความ)
+    * ข้อมูลอ้างอิง: ใน ESP-IDF v6 header `hal/i2c_types.h` ถูกย้ายไปอยู่ใน component
+      `esp_hal_i2c` (ซึ่ง `esp_driver_i2c` `REQUIRES` แบบ public → include path resolve ได้)

@@ -58,11 +58,6 @@ inline const char* esp_err_to_name(esp_err_t err) {
 #define ESP_LOGV(tag, format, ...) ESP_LOG_LEVEL(tag, "V", format, ##__VA_ARGS__)
 
 // ---------------------------------------------------------------------------
-// esp_timer.h
-// ---------------------------------------------------------------------------
-inline int64_t esp_timer_get_time() { return 0; }
-
-// ---------------------------------------------------------------------------
 // esp_heap_caps.h
 // ---------------------------------------------------------------------------
 #define MALLOC_CAP_8BIT (1 << 2)
@@ -134,82 +129,6 @@ inline esp_err_t gpio_isr_handler_add(gpio_num_t pin, void (*handler)(void*), vo
 inline int gpio_get_level(gpio_num_t pin) {
     (void)pin;
     return 1;
-}
-
-// ---------------------------------------------------------------------------
-// driver/i2c_master.h
-// ---------------------------------------------------------------------------
-using i2c_port_num_t = int;
-#define I2C_NUM_0 0
-#define I2C_NUM_1 1
-#define I2C_CLK_SRC_DEFAULT 0
-
-struct i2c_master_bus_t;
-using i2c_master_bus_handle_t = struct i2c_master_bus_t*;
-struct i2c_master_dev_t;
-using i2c_master_dev_handle_t = struct i2c_master_dev_t*;
-
-enum i2c_addr_bit_len_t {
-    I2C_ADDR_BIT_LEN_7 = 0,
-    I2C_ADDR_BIT_LEN_10 = 1,
-};
-
-struct i2c_master_bus_config_t {
-    i2c_port_num_t i2c_port;
-    int sda_io_num;
-    int scl_io_num;
-    int clk_source;
-    uint8_t glitch_ignore_cnt;
-    struct {
-        bool enable_internal_pullup;
-    } flags;
-};
-
-struct i2c_device_config_t {
-    i2c_addr_bit_len_t dev_addr_length;
-    uint16_t device_address;
-    uint32_t scl_speed_hz;
-};
-
-inline esp_err_t i2c_new_master_bus(const i2c_master_bus_config_t* cfg, i2c_master_bus_handle_t* out) {
-    (void)cfg;
-    *out = reinterpret_cast<i2c_master_bus_handle_t>(0x1);
-    return ESP_OK;
-}
-inline esp_err_t i2c_del_master_bus(i2c_master_bus_handle_t bus) {
-    (void)bus;
-    return ESP_OK;
-}
-inline esp_err_t i2c_master_bus_add_device(i2c_master_bus_handle_t bus, const i2c_device_config_t* cfg,
-                                           i2c_master_dev_handle_t* out) {
-    (void)bus;
-    (void)cfg;
-    *out = reinterpret_cast<i2c_master_dev_handle_t>(0x2);
-    return ESP_OK;
-}
-inline esp_err_t i2c_master_probe(i2c_master_bus_handle_t bus, uint16_t address, int timeoutMs) {
-    (void)bus;
-    (void)address;
-    (void)timeoutMs;
-    return ESP_OK;
-}
-inline esp_err_t i2c_master_transmit(i2c_master_dev_handle_t dev, const uint8_t* buffer, size_t len,
-                                      int timeoutMs) {
-    (void)dev;
-    (void)buffer;
-    (void)len;
-    (void)timeoutMs;
-    return ESP_OK;
-}
-inline esp_err_t i2c_master_transmit_receive(i2c_master_dev_handle_t dev, const uint8_t* tx, size_t txLen,
-                                             uint8_t* rx, size_t rxLen, int timeoutMs) {
-    (void)dev;
-    (void)tx;
-    (void)txLen;
-    (void)rx;
-    (void)rxLen;
-    (void)timeoutMs;
-    return ESP_OK;
 }
 
 // ---------------------------------------------------------------------------
