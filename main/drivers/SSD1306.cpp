@@ -35,7 +35,7 @@ constexpr uint8_t kInitSequence[] = {
 esp_err_t SSD1306::init() {
     const esp_err_t probeResult = probe();
     if (probeResult != ESP_OK) {
-        ESP_LOGE(kTag, "no answer on address 0x%02X", m_address);
+        ESP_LOGE(kTag, "no answer on address 0x%02X", static_cast<unsigned>(m_address));
         return probeResult;
     }
 
@@ -52,7 +52,8 @@ esp_err_t SSD1306::init() {
 
     clear();
     flush();
-    ESP_LOGI(kTag, "display ready on address 0x%02X (%dx%d, %u byte frame buffer)", m_address, kWidth, kHeight,
+    ESP_LOGI(kTag, "display ready on address 0x%02X (%dx%d, %u byte frame buffer)",
+             static_cast<unsigned>(m_address), static_cast<int>(kWidth), static_cast<int>(kHeight),
              static_cast<unsigned>(kBufferSize));
     return ESP_OK;
 }

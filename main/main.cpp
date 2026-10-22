@@ -13,7 +13,7 @@
  *   | vTaskAlarmCheck     |  4   | 2048 B |  1   | periodic 1000 ms  |
  *   | vTaskNTPSync        |  1   | 6144 B |  0   | periodic 3600 s   |
  */
-#include <cinttypes>
+#include <cstdint>
 #include <cstdio>
 
 #include "AlarmManager.hpp"
@@ -87,8 +87,10 @@ EventGroupHandle_t g_events = nullptr;
 
 /** @brief Small helper that keeps the log output readable. */
 void logTask(const char* name, UBaseType_t priority, uint32_t stackBytes, BaseType_t core) {
-    ESP_LOGI(kTag, "%-18s prio=%u stack=%" PRIu32 "B core=%d", name, static_cast<unsigned>(priority),
-             stackBytes, static_cast<int>(core));
+    // Every argument is cast to a plain int/unsigned so that the printf style
+    // format string can never disagree with the type of the argument.
+    ESP_LOGI(kTag, "%-18s prio=%u stack=%uB core=%d", name, static_cast<unsigned>(priority),
+             static_cast<unsigned>(stackBytes), static_cast<int>(core));
 }
 
 // ---------------------------------------------------------------------------
@@ -190,9 +192,12 @@ extern "C" void app_main() {
         ESP_LOGE(kTag, "I2C initialisation failed - halting");
         return;
     }
-    ESP_LOGI(kTag, "I2C bus #%d ready (SDA=%d, SCL=%d, %" PRIu32 " Hz)", static_cast<int>(Config::kI2cPort),
-             static_cast<int>(Config::kI2cSdaPin), static_cast<int>(Config::kI2cSclPin),
-             Config::kI2cClockHz);
+    // "Config::kI2cPort" and the pin numbers are enums / driver specific
+    // types - they are cast to int explicitly so that the log call never
+    // depends on an implicit type conversion.
+    ESP_LOGI(kTag, "I2C bus ready (port=%d, SDA=%d, SCL=%d, %u Hz)",
+             static_cast<int>(Config::kI2cPort), static_cast<int>(Config::kI2cSdaPin),
+             static_cast<int>(Config::kI2cSclPin), static_cast<unsigned>(Config::kI2cClockHz));
 
     if (g_rtc.init() == ESP_OK) {
         xEventGroupSetBits(g_events, kEventRtcReady);
@@ -208,7 +213,7 @@ extern "C" void app_main() {
     }
 
     if (g_oled.init() == ESP_OK) {
-        ESP_LOGI(kTag, "SSD1306 ready at 0x%02X", Config::kSsd1306Address);
+        ESP_LOGI(kTag, "SSD1306 ready at 0x%02X", static_cast<unsigned>(Config::kSsd1306Address));
     } else {
         ESP_LOGE(kTag, "SSD1306 not detected");
     }
@@ -263,5 +268,6 @@ extern "C" void app_main() {
             Config::kAlarmTaskCore);
     logTask("vTaskNTPSync", Config::kNtpTaskPriority, Config::kNtpTaskStackBytes, Config::kNtpTaskCore);
 
-    ESP_LOGI(kTag, "all tasks started, free heap = %" PRIu32 " bytes", g_bus.freeHeapBytes());
+    ESP_LOGI(kTag, "all tasks started, free heap = %u bytes",
+             static_cast<unsigned>(g_bus.freeHeapBytes()));
 }

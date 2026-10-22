@@ -672,8 +672,37 @@ wokwi-cli .
    * เพิ่ม `static_assert` ใน `NTPManager.cpp` เทียบ `decltype(&NTPManager::onSntpTimeSync)`
      กับ `esp_sntp_time_cb_t` → ถ้ามีคนลบ `<sys/time.h>` ออกไป จะได้ error ที่อ่านเข้าใจได้
      แทน error ประเภทชนกันของ function pointer
-   * stub ฝั่ง host ถูกปรับให้ตรงกับ ESP-IDF จริงแล้ว (ประกาศ `struct timeval` ไว้เฉพาะใน
-     `test/host/stubs/esp_netif_sntp.h` ตามของจริง) และเพิ่ม
+   * stub ฝั่ง host ถูกปรับให้ตรงกับ ESP-IDF จริงแล้ว (`test/host/stubs/esp_netif_sntp.h`
+     include `<sys/time.h>` + `<sdkconfig.h>` และประกาศฟิลด์ตามของจริง) และเพิ่ม
      `test/host/check_timeval_include.py` เป็น source-level guard ที่รันอยู่ใน
      `typecheck_target.sh` (เพราะ `<ctime>` ของ mingw ประกาศ `::timeval` ให้ทั้งโลก
      ทำให้ type-check ฝั่ง PC มองไม่เห็นบั๊กนี้ได้)
+10. **`esp_sntp_config_t.renew_servers_after_new_IP` (bug ที่เจอตอน build จริง)** —
+    ฟิลด์นี้ใน ESP-IDF v6 สะกดด้วย **ตัวพิมพ์ใหญ่ `IP`** (`renew_servers_after_new_IP`)
+    ไม่ใช่ `renew_servers_after_new_ip` → ถ้าใช้ชื่อผิดจะได้ error
+    `no member named 'renew_servers_after_new_ip' in 'esp_sntp_config'`
+    **วิธีแก้ (ทำไว้แล้วในรุ่นนี้)**
+    * `main/drivers/NTPManager.cpp` — ใช้ `config.renew_servers_after_new_IP = false;`
+    * `test/host/stubs/esp_netif_sntp.h` — stub ปรับฟิลด์ให้ตรงชื่อจริง พร้อมทั้งใช้
+      `servers[CONFIG_LWIP_SNTP_MAX_SERVERS]` (ค่า 3 จาก `sdkconfig.defaults`) แทนขนาดตายตัว
+    * ยืนยัน API ที่ใช้ทั้งหมดกับ header จริงของ `release/v6.0` แล้ว:
+      `esp_netif_sntp.h` (รวม `esp_sntp_config_t`, `esp_sntp_time_cb_t`),
+      `esp_netif_types.h` (`esp_netif_ip_info_t.ip` ยังเป็น `esp_ip4_addr_t` → `info.ip.addr` ใช้ได้),
+      `esp_netif.h` (`esp_netif_t` เป็น `struct esp_netif_obj`), `esp_driver_i2c/driver/i2c_master.h`,
+      `esp_driver_gpio/driver/gpio.h` และ `components/log/include/esp_log*.h`
+11. **ประเภทของ argument ใน `ESP_LOG*` (type conversion)** — ข้อความ error
+    `invalid conversion from 'i2c_port_num_t' to 'int'` / `format '%d' expects argument of type 'int'`
+    เกิดจากการส่งค่าที่เป็น enum หรือชนิดเฉพาะของ driver เข้าไปใน printf-style log
+    **วิธีแก้ (ทำไว้แล้วในรุ่นนี้)**
+    * `main/main.cpp` — บรรทัด log ของ I2C bus เขียนใหม่เป็น
+      `ESP_LOGI(kTag, "I2C bus ready (port=%d, SDA=%d, SCL=%d, %u Hz)", static_cast<int>(Config::kI2cPort), ...)`
+      คือ **cast ทุก argument ให้เป็น `int` / `unsigned` อย่างชัดเจน** ไม่ต้องพึ่ง implicit conversion
+    * ตัด dependency ของ `PRIu32` ออกจากทั้งโปรเจกต์ (ใช้ `%u` + `static_cast<unsigned>`)
+      เพราะ `PRIu32` ขึ้นกับ `__STDC_FORMAT_MACROS` ของแต่ละ libc และขนาดของ `uint32_t`
+    * cast เดียวกันนี้ถูกใช้กับ `SSD1306`/`DS1307` (`0x%02X` ต้องการ `unsigned`), `I2CBus`,
+      `ButtonManager` และ `NTPManager` เพื่อให้ทุก log call มีชนิด argument แบบเดียวกัน
+    * ข้อควรระวัง: ใน ESP-IDF v6 `esp_log()` **ไม่มี** `__attribute__((format(printf, ...)))`
+      การสลับชนิดจึงไม่ทำให้ compile error แต่จะพิมพ์ค่าผิดตอน runtime
+      (host stub ที่ `test/host/stubs/` ทำให้ `std::printf` → จึงตรวจจับ mismatch ได้ตอน type-check)
+    * ข้อมูลอ้างอิงเพิ่ม: ใน ESP-IDF v6 `i2c_port_num_t` คือ `typedef int` (ไม่ใช่ enum)
+      และ `gpio_num_t` มาจาก `hal/gpio_types.h` → การ cast เป็น `int` จึงปลอดภัยทุกกรณี

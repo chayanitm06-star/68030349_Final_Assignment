@@ -1,6 +1,6 @@
 #include "I2CBus.hpp"
 
-#include <cinttypes>
+#include <cstdint>
 
 #include "esp_heap_caps.h"
 #include "esp_log.h"
@@ -53,8 +53,8 @@ esp_err_t I2CBus::init() {
         return err;
     }
 
-    ESP_LOGI(kTag, "I2C master ready (port=%d, SDA=%d, SCL=%d, %" PRIu32 " Hz)", static_cast<int>(m_port),
-             static_cast<int>(m_sdaPin), static_cast<int>(m_sclPin), m_clockHz);
+    ESP_LOGI(kTag, "I2C master ready (port=%d, SDA=%d, SCL=%d, %u Hz)", static_cast<int>(m_port),
+             static_cast<int>(m_sdaPin), static_cast<int>(m_sclPin), static_cast<unsigned>(m_clockHz));
     return ESP_OK;
 }
 

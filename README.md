@@ -90,6 +90,8 @@ docs/REPORT.md  รายงานฉบับเต็ม
 | `TimeManager::now()` compile ไม่ผ่าน | ฟังก์ชันเป็น `const` แต่ต้องอัปเดต cache → ประกาศ `m_lastKnown` เป็น `mutable` |
 | ค่า NTP epoch เทียบผิดสัญญาณ | `kNtpToUnixEpochDelta` เป็น `uint64` → ต้อง cast เป็น `int64` ก่อนเทียบ |
 | `struct Clock::timeval` compile ไม่ผ่าน | ใน `namespace Clock` การเขียน `struct timeval` โดยยังไม่มี `<sys/time.h>` จะ **ประกาศชนิดใหม่ `Clock::timeval`** ที่ชนกับ `esp_sntp_time_cb_t` → ใส่ `#include <sys/time.h>` ไว้บนสุดไฟล์และใช้ `::timeval` แบบ fully qualified + เพิ่ม `static_assert` เทียบกับ `esp_sntp_time_cb_t` |
+| `esp_sntp_config_t` ไม่มีฟิลด์ `renew_servers_after_new_ip` | ฟิลด์นี้ใน ESP-IDF v6 สะกดด้วย **ตัวพิมพ์ใหญ่** คือ `renew_servers_after_new_IP` → แก้ใน `main/drivers/NTPManager.cpp` และปรับ stub ให้ตรงชื่อจริง |
+| `ESP_LOGI(...)` error เรื่อง type conversion (`i2c_port_num_t` → `int`) | cast argument ทุกตัวให้เป็น `int`/`unsigned` ให้ชัดเจน (`static_cast<int>(Config::kI2cPort)`, `%u` + `static_cast<unsigned>`) และตัด dependency ของ `PRIu32` ออกทั้งโปรเจกต์ → ทำกับทุก log call ใน `main.cpp` และ `main/drivers/*` |
 | ปุ่ม/อุปกรณ์ใน `diagram.json` ต่อสายไม่ได้ | `diagram.json` ที่ให้มาในสเปกมีชื่อ part และชื่อขาผิด (`wokwi-esp32-devkit-v4`, `board-ds1307`, ขาปุ่ม `1.1`/`1.A`) → แก้เป็น `board-esp32-devkit-c-v4`, `wokwi-ds1307`, `board-ssd1306` และขาปุ่ม `1.l`/`2.l` (ชื่อขาจริงตามคู่มือ Wokwi) |
 | ปุ่มทับตัวบอร์ด ESP32 ในหน้า Wokwi | บอร์ด DevKit C V4 กว้าง 105 × สูง 214 px แต่สเปกวางปุ่มที่ `top: 150` → ย้ายชุดปุ่มลงใต้บอร์ด (`top: 280`) และย้าย RTC/OLED ไปด้านขวา (`left: 280`) |
 | Wokwi ต่อ Wi-Fi ไม่ได้ (SSID `iotexpo` ไม่มีในตัวจำลอง) | เพิ่ม SSID สำรอง `Wokwi-GUEST` (ไม่มีรหัส) ใน `main/ClockConfig.hpp` → ถ้าต่อหลักไม่สำเร็จจะสลับไปใช้อัตโนมัติ |

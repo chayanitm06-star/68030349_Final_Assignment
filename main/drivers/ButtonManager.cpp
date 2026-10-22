@@ -1,6 +1,6 @@
 #include "ButtonManager.hpp"
 
-#include <cinttypes>
+#include <cstdint>
 
 #include "esp_attr.h"
 #include "esp_log.h"
@@ -80,8 +80,9 @@ esp_err_t ButtonManager::init() {
         }
     }
 
-    ESP_LOGI(kTag, "%u buttons ready (debounce %" PRIu32 " ms, long press %" PRIu32 " ms)", kButtonCount,
-             Config::kButtonDebounceMs, Config::kLongPressMs);
+    ESP_LOGI(kTag, "%u buttons ready (debounce %u ms, long press %u ms)",
+             static_cast<unsigned>(kButtonCount), static_cast<unsigned>(Config::kButtonDebounceMs),
+             static_cast<unsigned>(Config::kLongPressMs));
     return ESP_OK;
 }
 

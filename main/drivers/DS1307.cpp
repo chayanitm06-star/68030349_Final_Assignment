@@ -10,7 +10,7 @@ constexpr const char* kTag = "DS1307";
 esp_err_t DS1307::init() {
     const esp_err_t probeResult = probe();
     if (probeResult != ESP_OK) {
-        ESP_LOGE(kTag, "no answer on address 0x%02X", m_address);
+        ESP_LOGE(kTag, "no answer on address 0x%02X", static_cast<unsigned>(m_address));
         return probeResult;
     }
 
@@ -43,7 +43,7 @@ esp_err_t DS1307::init() {
     }
 
     m_running = true;
-    ESP_LOGI(kTag, "RTC ready on address 0x%02X", m_address);
+    ESP_LOGI(kTag, "RTC ready on address 0x%02X", static_cast<unsigned>(m_address));
     return ESP_OK;
 }
 

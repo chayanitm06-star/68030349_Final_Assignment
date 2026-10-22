@@ -3,7 +3,7 @@
 
 #include "NTPManager.hpp"
 
-#include <cinttypes>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -181,7 +181,8 @@ bool NTPManager::tryConnect() {
     const EventBits_t bits = xEventGroupWaitBits(m_events, kGotIpBit | kConnectedBit, pdFALSE, pdFALSE,
                                                  pdMS_TO_TICKS(m_settings.connectTimeoutMs));
     if ((bits & kGotIpBit) == 0) {
-        ESP_LOGW(kTag, "Wi-Fi connection timed out after %" PRIu32 " ms", m_settings.connectTimeoutMs);
+        ESP_LOGW(kTag, "Wi-Fi connection timed out after %u ms",
+                 static_cast<unsigned>(m_settings.connectTimeoutMs));
         m_lastError = ESP_ERR_TIMEOUT;
         esp_wifi_disconnect();
         return false;
@@ -231,7 +232,7 @@ bool NTPManager::syncTime() {
         config.wait_for_sync = true;   // required by esp_netif_sntp_sync_wait()
         config.start = true;
         config.sync_cb = &NTPManager::onSntpTimeSync;
-        config.renew_servers_after_new_ip = false;
+        config.renew_servers_after_new_IP = false;
         config.ip_event_to_renew = IP_EVENT_STA_GOT_IP;
         config.index_of_first_server = 0;
         config.num_of_servers = 1;
