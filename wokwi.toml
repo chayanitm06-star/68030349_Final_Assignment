@@ -1,0 +1,15 @@
+# Wokwi project configuration
+#
+# Wokwi for VS Code / the Wokwi CLI expect `wokwi.toml` and `diagram.json`
+# in the project root (next to CMakeLists.txt).
+#
+#   idf.py build          ->  build/flasher_args.json + build/esp32_digital_clock.elf
+#   idf.py wokwi          ->  build + start the simulator in one step (ESP-IDF >= 6.0)
+#
+# `firmware` points at flasher_args.json so that Wokwi loads the bootloader,
+# the partition table and the application exactly like `idf.py flash` does.
+
+[wokwi]
+version = 1
+firmware = 'build/flasher_args.json'
+elf = 'build/esp32_digital_clock.elf'

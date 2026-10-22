@@ -24,8 +24,9 @@ main/drivers/   adapter ESP-IDF v6 (I2CBus, DS1307, SSD1306, Button(+Manager),
                 Buzzer, NTPManager, AlarmManager, Stopwatch, SystemClock)
 main/main.cpp   ต่อทุกอย่างเข้าด้วยกัน (object graph + 4 task)
 main/ClockConfig.hpp  pin / credential / task parameter ทั้งหมด (จุดเดียว)
-wokwi/          diagram.json (pin 12/13/14/27) + diagram-suite-pins.json (18/19/4/5)
-                + wokwi.toml (ชี้ path ของ firmware .bin ที่ build ได้)
+diagram.json         ไดอะแกรม Wokwi (pin 12/13/14/27) — อยู่รากโปรเจกต์ตามที่ Wokwi ต้องการ
+wokwi.toml           ชี้ firmware ที่ build ได้ให้ Wokwi (ESP-IDF → build/flasher_args.json)
+wokwi/               diagram-suite-pins.json = ชุด pin แบบ Suite (18/19/4/5)
 test/host/      runner เทสต์บน PC + ESP-IDF stub (เขียนเอง ไม่ต้องมี ESP-IDF)
 test/test_clock_core/  โปรเจกต์ ESP-IDF สำหรับรัน Unity test บนบอร์ด
 docs/REPORT.md  รายงานฉบับเต็ม
@@ -39,7 +40,7 @@ docs/REPORT.md  รายงานฉบับเต็ม
 
 3. Flash + monitor: `idf.py -p /dev/ttyUSB0 flash monitor`
 
-4. รันจำลอง: กด **Start Simulation** ของ Wokwi โดยวาง `wokwi/diagram.json` ลงแท็บ `diagram.json`
+4. รันจำลอง: `idf.py wokwi` (ESP-IDF ≥ 6.0) หรือกด **Wokwi: Start Simulator** ใน VS Code — ไฟล์ `diagram.json` + `wokwi.toml` อยู่ที่รากโปรเจกต์พร้อมแล้ว
 
 5. (ทางเลือก) เทสต์บนบอร์ด: `cd test/test_clock_core && idf.py build flash monitor`
 
@@ -56,14 +57,15 @@ docs/REPORT.md  รายงานฉบับเต็ม
 | SET | 14 | ALARM = บันทึก + เปิด/ปิดปลุก · SET TIME = เขียนเวลาลง RTC · STOPWATCH = เริ่ม/หยุด | เลื่อน cursor ระหว่างชั่วโมง/นาที |
 | LAP | 27 | STOPWATCH = บันทึก lap (ถ้าหยุดอยู่ = รีเซ็ต) · อื่น ๆ = ปิดเสียงปลุก | เหมือนกดครั้งเดียว |
 
-คีย์บอร์ดใน Wokwi: **M / S / A / L** ตรงกับปุ่มด้านบน
+คีย์บอร์ดใน Wokwi: **M / I / S / L** ตรงกับปุ่มด้านบน (ผูกไว้ด้วย attribute `key` ใน `diagram.json`)
 
 ## ผลการทดสอบ
 
 - **Host unit test:** ผ่านหมด 16 เคส / 158 assertions (`bash test/host/run_host_tests.sh`) ครอบคลุม BCD conversion, framebuffer 1024 B, debounce 50 ms, long press, RTC fallback, NTP offset +7, alarm comparator, lap split
 - **Type-check:** `main/main.cpp` + `core/*.cpp` + `drivers/*.cpp` + `unit_tests.cpp` ผ่านหมดด้วย `-Wall -Wextra` **ไม่มี warning** (`bash test/host/typecheck_target.sh`)
 - **Unity บน target:** 22 เคส (10 ชื่อแบบ Suite + 12 ชื่อแบบ Dashboard) ลงทะเบียนครบใน `test/test_clock_core/main/unit_tests.cpp`
-- **Wokwi:** `diagram.json` ทั้งสองเวอร์ชันผ่านการตรวจ syntax และใช้ชื่อ part มาตรฐานของ Wokwi
+- **Wokwi:** `diagram.json` ทั้งสองเวอร์ชันผ่านการตรวจครบ 5 ข้อ — part type ถูกต้อง, ไม่มีอุปกรณ์ทับกัน, ขาทุกเส้นมีอยู่จริงบน part, ทุกอุปกรณ์ถูกต่อสายครบ, ขา ESP32 ที่ใช้มีจริงบนบอร์ด
+- **คีย์ลัด Wokwi:** ผูกปุ่มคีย์บอร์ดไว้แล้วใน `diagram.json` (M / I / S / L)
 
 ## ปัญหาที่เจอ และวิธีแก้
 
@@ -76,7 +78,8 @@ docs/REPORT.md  รายงานฉบับเต็ม
 | frame buffer กลายเป็นขนาด 0 | `kBufferSize` ถูกประกาศเป็น `uint8_t` (1024 ถูกตัด) → เปลี่ยนเป็น `uint16_t` |
 | `TimeManager::now()` compile ไม่ผ่าน | ฟังก์ชันเป็น `const` แต่ต้องอัปเดต cache → ประกาศ `m_lastKnown` เป็น `mutable` |
 | ค่า NTP epoch เทียบผิดสัญญาณ | `kNtpToUnixEpochDelta` เป็น `uint64` → ต้อง cast เป็น `int64` ก่อนเทียบ |
-| ปุ่มใน `diagram.json` ต่อสายไม่ได้ | ขา pushbutton ของ Wokwi คือ `1.1` / `1.2` (ไม่ใช่ `1.A`) และ part ต้องเป็น `wokwi-ds1307`, `board-esp32-devkit-c-v4` |
+| ปุ่ม/อุปกรณ์ใน `diagram.json` ต่อสายไม่ได้ | `diagram.json` ที่ให้มาในสเปกมีชื่อ part และชื่อขาผิด (`wokwi-esp32-devkit-v4`, `board-ds1307`, ขาปุ่ม `1.1`/`1.A`) → แก้เป็น `board-esp32-devkit-c-v4`, `wokwi-ds1307`, `board-ssd1306` และขาปุ่ม `1.l`/`2.l` (ชื่อขาจริงตามคู่มือ Wokwi) |
+| ปุ่มทับตัวบอร์ด ESP32 ในหน้า Wokwi | บอร์ด DevKit C V4 กว้าง 105 × สูง 214 px แต่สเปกวางปุ่มที่ `top: 150` → ย้ายชุดปุ่มลงใต้บอร์ด (`top: 280`) และย้าย RTC/OLED ไปด้านขวา (`left: 280`) |
 | ไม่มี ESP-IDF/บอร์ดในเครื่องพัฒนา | เขียน ESP-IDF stub เองที่ `test/host/stubs/` (อ้างอิง header จริงของ v6.0) + ใช้ `python -m ziglang c++` เป็น host compiler |
 
 ## หมายเหตุ

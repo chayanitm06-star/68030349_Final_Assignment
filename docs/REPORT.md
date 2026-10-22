@@ -113,7 +113,7 @@
 | 3.8 | จุดประกอบทั้งระบบ + 4 task | `main/main.cpp` |
 | 3.9 | โปรเจกต์เทสต์ Unity บน target | `test/test_clock_core/**` |
 | 3.10 | runner บน PC + ESP‑IDF stub | `test/host/**` |
-| 3.11 | ไดอะแกรม Wokwi | `wokwi/diagram.json`, `wokwi/diagram-suite-pins.json` |
+| 3.11 | ไดอะแกรม Wokwi | `diagram.json`, `wokwi/diagram-suite-pins.json`, `wokwi.toml` |
 | 3.12 | เอกสาร | `README.md`, `docs/REPORT.md` |
 
 ---
@@ -270,11 +270,27 @@ cd test/test_clock_core && idf.py set-target esp32 && idf.py build flash monitor
 
 | ไฟล์ | สิ่งที่ทำ |
 |---|---|
-| `wokwi/diagram.json` | ไดอะแกรมหลัก — ตรงกับ pin ของ Dashboard (12/13/14/27) + RTC/SSD1306 บน I²C + buzzer |
+| `diagram.json` (รากโปรเจกต์) | ไดอะแกรมหลัก — ตรงกับ pin ของ Dashboard (12/13/14/27) + RTC/SSD1306 บน I²C + buzzer + ปุ่ม 4 ตัวผูกคีย์ลัด · วางไว้รากโปรเจกต์ตามที่ Wokwi for VS Code / Wokwi CLI ต้องการ |
 | `wokwi/diagram-suite-pins.json` | ไดอะแกรมสำรอง — ตรงกับตารางต่อสายของ Suite (18/19/4/5, RTC บนราง 5V) |
+| `wokwi.toml` (รากโปรเจกต์) | ชี้ firmware ที่ build ได้: `firmware = 'build/flasher_args.json'`, `elf = 'build/esp32_digital_clock.elf'` (สำหรับ ESP-IDF ต้องชี้ flasher_args.json เพื่อให้ Wokwi โหลด bootloader + partition table + app เหมือน `idf.py flash`) |
 
-**สถานะ:** ✅ เสร็จ — JSON ผ่านการตรวจสอบ syntax แล้ว และใช้ชื่อ part มาตรฐานของ Wokwi
-(`board-esp32-devkit-c-v4`, `wokwi-ds1307`, `wokwi-ssd1306`, `wokwi-pushbutton`, `wokwi-buzzer`)
+**การแก้ไขที่ต้องทำ** — `diagram.json` ที่แนบมาในสเปก HTML **ต่อสายไม่ได้จริง** ผมจึงเขียนใหม่โดยอ้างอิง
+คู่มือ part ของ Wokwi (`wokwi/wokwi-docs`) และไฟล์จริงของ part (`wokwi/wokwi-boards`, `wokwi/wokwi-elements`):
+
+| สิ่งที่ผิดในสเปก | แก้เป็น |
+|---|---|
+| `wokwi-esp32-devkit-v4` (ไม่มี part type นี้) | `board-esp32-devkit-c-v4` |
+| `board-ds1307` (ไม่มี part type นี้) | `wokwi-ds1307` |
+| `wokwi-ssd1306` (ถูก deprecate แล้ว) | `board-ssd1306` |
+| ขาปุ่ม `1.1` / `1.A` / `2.1` | `1.l` / `2.l` (ปุ่ม Wokwi มีขา `1.l` `2.l` `1.r` `2.r`) |
+| `rtc:VCC` | `rtc:5V` (โมดูล DS1307 ของ Wokwi มีขา `GND` `5V` `SDA` `SCL` `SQW`) |
+| `esp:GND` (บอร์ดไม่มีขาชื่อ GND เปล่า) | `esp:GND.1` / `esp:GND.2` / `esp:GND.3` (บอร์ดมี 3 ขา GND) |
+| `esp:GND.4` (ไม่มีอยู่จริง) | `esp:GND.3` |
+| ปุ่มวางที่ `top: 150` → **ทับตัวบอร์ด** (บอร์ดสูง 214 px) | ย้ายชุดปุ่มลงใต้บอร์ด `top: 280`, ย้าย RTC/OLED ไปขวา `left: 280` |
+| buzzer ต่อกลับด้าน (ขา 1 = ลบ, ขา 2 = บวก) | `esp:25 → buzzer:2`, `esp:GND.1 → buzzer:1` |
+
+**สถานะ:** ✅ เสร็จ — ผ่านการตรวจ 5 ข้อ (part type ถูกต้อง, ไม่มีอุปกรณ์ทับกัน, ขาทุกเส้นมีจริงบน part,
+ทุกอุปกรณ์ถูกต่อสายครบ, ขา ESP32 ที่ใช้มีจริงบน `board-esp32-devkit-c-v4`)
 
 ---
 
@@ -328,16 +344,23 @@ bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที�
 ### 5.4 Wokwi
 
 1. เปิด <https://wokwi.com> → เลือกโปรเจกต์ **ESP32** ภาษา **C++ / ESP‑IDF**
-2. วาง `wokwi/diagram.json` ลงแท็บ `diagram.json` (หรือ `wokwi/diagram-suite-pins.json` ถ้าต้องการชุด pin แบบ Suite)
+2. วาง `diagram.json` (อยู่ที่รากโปรเจกต์แล้ว) ลงแท็บ `diagram.json` ของโปรเจกต์ใน Wokwi
+   ถ้าต้องการชุด pin แบบ Suite ให้ใช้ `wokwi/diagram-suite-pins.json` แทน
 3. อัปโหลดไฟล์โค้ดจาก `main/` (โครงสร้างตามหัวข้อ 8)
 4. กด **Start Simulation** แล้วเปิด Serial Monitor (115200)
+
+> ถ้าใช้ **Wokwi for VS Code** หรือ **Wokwi CLI** ให้ใช้ `wokwi.toml` + `diagram.json` ที่รากโปรเจกต์
+> แล้วรัน `idf.py wokwi` (ESP‑IDF ≥ 6.0) หรือ `wokwi-cli .` — `wokwi.toml` จะชี้ไปที่
+> `build/flasher_args.json` ที่ `idf.py build` สร้างไว้
 
 | ปุ่ม | คีย์ลัด | การทำงาน |
 |---|---|---|
 | MODE | `M` | สลับโหมด CLOCK → ALARM → STOPWATCH → SET TIME (กดค้าง = sync NTP) |
-| INC | `S` | ในหน้า ALARM/SET TIME = +1 ที่ฟิลด์ที่เลือก (กดค้าง = +5) · ในหน้า CLOCK = sync NTP |
-| SET | `A` | ALARM = บันทึก + เปิด/ปิดปลุก · SET TIME = เขียนเวลาลง RTC · STOPWATCH = เริ่ม/หยุด (กดค้าด = เลื่อน cursor) |
+| INC | `I` | ในหน้า ALARM/SET TIME = +1 ที่ฟิลด์ที่เลือก (กดค้าง = +5) · ในหน้า CLOCK = sync NTP |
+| SET | `S` | ALARM = บันทึก + เปิด/ปิดปลุก · SET TIME = เขียนเวลาลง RTC · STOPWATCH = เริ่ม/หยุด (กดค้าง = เลื่อน cursor) |
 | LAP | `L` | STOPWATCH = บันทึก lap (ถ้าหยุดอยู่ = รีเซ็ต) · อื่น ๆ = ปิดเสียงปลุก |
+
+> คีย์ลัดผูกด้วย attribute `key` ใน `diagram.json` (ชุด Suite ใช้ `M` / `S` / `A` / `L` ตามชื่อปุ่มของสเปก Suite)
 
 ---
 
@@ -427,20 +450,21 @@ bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที�
 
 ## 8. Hardware Pin Map
 
-| อุปกรณ์ | สัญญาณ | ขา ESP32 |
-|---|---|---|
-| DS1307 RTC (0x68) | SDA / SCL | GPIO 21 / GPIO 22 |
-| DS1307 RTC | VCC / GND | 3V3 / GND (5V ในไดอะแกรมสำรองของ Suite) |
-| SSD1306 OLED (0x3C) | SDA / SCL | GPIO 21 / GPIO 22 |
-| SSD1306 OLED | VCC / GND | 3V3 / GND |
-| ปุ่ม MODE | – | **GPIO 12** (สำรอง: 18) |
-| ปุ่ม INC / NTP | – | **GPIO 13** (สำรอง: 19) |
-| ปุ่ม SET / ALARM | – | **GPIO 14** (สำรอง: 4) |
-| ปุ่ม LAP / RESET | – | **GPIO 27** (สำรอง: 5) |
-| Piezo buzzer | – | GPIO 25 (LEDC PWM 2.7 kHz) |
-| I²C bus | – | I²C #0 @ 400 kHz |
-| Wi‑Fi | – | STA `iotexpo` / `12345678` |
-| NTP | – | `pool.ntp.org` (สำรอง `time.nist.gov`), TZ +7 ชม. |
+| อุปกรณ์ | สัญญาณ | ขา ESP32 | ขาใน Wokwi |
+|---|---|---|---|
+| DS1307 RTC (0x68) | SDA / SCL | GPIO 21 / GPIO 22 | `rtc:SDA` / `rtc:SCL` |
+| DS1307 RTC | VCC / GND | 5V / GND | `rtc:5V` / `rtc:GND` (โมดูล DS1307 ของ Wokwi ใช้ขา `5V`) |
+| SSD1306 OLED (0x3C) | SDA / SCL | GPIO 21 / GPIO 22 | `oled:SDA` / `oled:SCL` |
+| SSD1306 OLED | VCC / GND | 3V3 / GND | `oled:VCC` / `oled:GND` |
+| ปุ่ม MODE | – | **GPIO 12** (สำรอง: 18) | `btn_mode:1.l` / `btn_mode:2.l` |
+| ปุ่ม INC / NTP | – | **GPIO 13** (สำรอง: 19) | `btn_inc:1.l` / `btn_inc:2.l` |
+| ปุ่ม SET / ALARM | – | **GPIO 14** (สำรอง: 4) | `btn_set:1.l` / `btn_set:2.l` |
+| ปุ่ม LAP / RESET | – | **GPIO 27** (สำรอง: 5) | `btn_lap:1.l` / `btn_lap:2.l` |
+| Piezo buzzer | – | GPIO 25 (LEDC PWM 2.7 kHz) | `buzzer:2` (ขาบวก) / `buzzer:1` (ขาลบ) |
+| GND | – | GND.1 / GND.2 / GND.3 | — |
+| I²C bus | – | I²C #0 @ 400 kHz | — |
+| Wi‑Fi | – | STA `iotexpo` / `12345678` | — |
+| NTP | – | `pool.ntp.org` (สำรอง `time.nist.gov`), TZ +7 ชม. | — |
 
 ---
 
@@ -460,7 +484,7 @@ bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที�
 | Alarm comparator + piezo buzzer | `core/AlarmEngine.cpp`, `drivers/Buzzer.cpp`, `drivers/AlarmManager.cpp` | `test_alarm_time_comparator`, `Alarm_Comparator_Trigger_Match` |
 | Stopwatch lap + high‑res timer | `core/StopwatchEngine.cpp`, `drivers/EspTimerSource.hpp`, `drivers/Stopwatch.cpp` | `test_stopwatch_lap_split_calc`, `Stopwatch_HighRes_Timer_Precision`, `Lap_Memory_Buffer_Push` |
 | FreeRTOS 4 tasks + EventGroup | `main/main.cpp` | `test_freertos_event_group_sync` |
-| Wokwi `diagram.json` | `wokwi/diagram.json`, `wokwi/diagram-suite-pins.json` | ตรวจ JSON syntax แล้ว |
+| Wokwi `diagram.json` | `diagram.json`, `wokwi/diagram-suite-pins.json`, `wokwi.toml` | ผ่านการตรวจ part type / ขา / การทับซ้อน / ความครบของสาย (หัวข้อ Step 6) |
 | ไฟล์โค้ดตามรายการของ Dashboard | `main/drivers/{DS1307,SSD1306,Button,NTPManager,AlarmManager,Stopwatch}.hpp/.cpp` | `test/test_clock_core/main/unit_tests.cpp` |
 | ไฟล์โค้ดตามรายการของ Suite | `main/{I2CBus,DS1307,SSD1306,ButtonManager,TimeManager,AlarmEngine,StopwatchEngine}` | `test/test_clock_core/main/unit_tests.cpp` |
 
@@ -474,6 +498,8 @@ bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที�
 ├── sdkconfig.defaults                # ค่า default ของ target, lwIP SNTP, FreeRTOS, log
 ├── .gitignore
 ├── README.md                          # README ระดับต้น
+├── diagram.json                       # ไดอะแกรม Wokwi หลัก (pin 12/13/14/27) — รากโปรเจกต์
+├── wokwi.toml                         # config ของ Wokwi for VS Code / Wokwi CLI
 │
 ├── main/
 │   ├── CMakeLists.txt                 # ลงทะเบียน component + REQUIRES ของ ESP-IDF v6
@@ -534,7 +560,6 @@ bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที�
 │   └── REPORT.md                      # รายงานฉบับเต็ม (ไฟล์นี้)
 │
 └── wokwi/
-    ├── diagram.json                   # pin map ของ Dashboard (12/13/14/27)
     └── diagram-suite-pins.json        # pin map ของ Suite   (18/19/4/5)
 ```
 
@@ -555,4 +580,9 @@ bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที�
 4. **เวลาโซน** — โค้ดบวก offset +7 ชม. ในตัวเอง (ไม่ใช้ `TZ` ของ lwIP) เพื่อให้ผลการทดสอบ
    (`SNTP_Timestamp_Offset_Calculation`) ไม่ขึ้นกับค่า `TZ` ของเครื่อง
 5. **การกดปุ่ม** — เป็น *active low* พร้อม pull‑up ภายใน ตามวงจรปุ่มทั่วไปใน Wokwi
-6. **ไฟล์ HTML ต้นฉบับ** ยังคงอยู่ในรีโปเพื่อใช้อ้างอิงสเปก ตามเดิม
+   (Wokwi จำลองการ bounce ของปุ่มไว้โดย default → เป็นการทดสอบ software debounce 50 ms ของโค้ดจริง)
+6. **`diagram.json` ในสเปก HTML ต้นฉบับใช้ไม่ได้จริง** — มีทั้งชื่อ part type ที่ไม่มีอยู่จริง
+   (`wokwi-esp32-devkit-v4`, `board-ds1307`), ชื่อขาที่ไม่ถูกต้อง (`1.1`, `1.A`, `rtc:VCC`, `esp:GND`,
+   `esp:GND.4`) และวางปุ่มทับตัวบอร์ด ESP32 — ไดอะแกรมใน `wokwi/` ของโปรเจกต์นี้เขียนใหม่ทั้งหมด
+   ตามคู่มือ part ของ Wokwi (ดูรายละเอียดในหัวข้อ Step 6)
+7. **ไฟล์ HTML ต้นฉบับ** ยังคงอยู่ในรีโปเพื่อใช้อ้างอิงสเปก ตามเดิม
