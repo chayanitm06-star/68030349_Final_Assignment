@@ -108,29 +108,14 @@ esp_err_t NTPManager::init() {
         return err;
     }
 
-    wifi_config_t staConfig{};
-    if (m_settings.ssid != nullptr) {
-        std::strncpy(reinterpret_cast<char*>(staConfig.sta.ssid), m_settings.ssid,
-                     sizeof(staConfig.sta.ssid) - 1);
-    }
-    if (m_settings.password != nullptr) {
-        std::strncpy(reinterpret_cast<char*>(staConfig.sta.password), m_settings.password,
-                     sizeof(staConfig.sta.password) - 1);
-    }
-    // The lab access point may be open or protected - accept everything.
-    staConfig.sta.threshold.authmode = WIFI_AUTH_OPEN;
-    staConfig.sta.pmf_cfg.capable = true;
-    staConfig.sta.pmf_cfg.required = false;
-
     err = esp_wifi_set_mode(WIFI_MODE_STA);
     if (err != ESP_OK) {
         ESP_LOGE(kTag, "esp_wifi_set_mode failed: %s", esp_err_to_name(err));
         return err;
     }
 
-    err = esp_wifi_set_config(WIFI_IF_STA, &staConfig);
+    err = applyStationConfig(m_settings.ssid, m_settings.password);
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "esp_wifi_set_config failed: %s", esp_err_to_name(err));
         return err;
     }
 
@@ -145,12 +130,32 @@ esp_err_t NTPManager::init() {
     return ESP_OK;
 }
 
-bool NTPManager::connect() {
-    if (!m_initialised) {
-        m_lastError = ESP_ERR_INVALID_STATE;
-        return false;
+esp_err_t NTPManager::applyStationConfig(const char* ssid, const char* password) {
+    wifi_config_t staConfig{};
+    if (ssid != nullptr) {
+        std::strncpy(reinterpret_cast<char*>(staConfig.sta.ssid), ssid,
+                     sizeof(staConfig.sta.ssid) - 1);
+    }
+    if (password != nullptr) {
+        std::strncpy(reinterpret_cast<char*>(staConfig.sta.password), password,
+                     sizeof(staConfig.sta.password) - 1);
+    }
+    // The access point may be open or protected - accept everything.
+    staConfig.sta.threshold.authmode = WIFI_AUTH_OPEN;
+    staConfig.sta.pmf_cfg.capable = true;
+    staConfig.sta.pmf_cfg.required = false;
+
+    const esp_err_t err = esp_wifi_set_config(WIFI_IF_STA, &staConfig);
+    if (err != ESP_OK) {
+        ESP_LOGE(kTag, "esp_wifi_set_config failed: %s", esp_err_to_name(err));
+        return err;
     }
 
+    m_activeSsid = ssid;
+    return ESP_OK;
+}
+
+bool NTPManager::tryConnect() {
     xEventGroupClearBits(m_events, kGotIpBit | kConnectedBit | kDisconnectedBit);
 
     esp_err_t err = esp_wifi_connect();
@@ -163,14 +168,42 @@ bool NTPManager::connect() {
     const EventBits_t bits = xEventGroupWaitBits(m_events, kGotIpBit | kConnectedBit, pdFALSE, pdFALSE,
                                                  pdMS_TO_TICKS(m_settings.connectTimeoutMs));
     if ((bits & kGotIpBit) == 0) {
-        ESP_LOGE(kTag, "Wi-Fi connection timed out after %" PRIu32 " ms", m_settings.connectTimeoutMs);
+        ESP_LOGW(kTag, "Wi-Fi connection timed out after %" PRIu32 " ms", m_settings.connectTimeoutMs);
         m_lastError = ESP_ERR_TIMEOUT;
+        esp_wifi_disconnect();
         return false;
     }
 
     m_wifiConnected = true;
     ESP_LOGI(kTag, "Wi-Fi connected, IP address: %s", ipAddress().c_str());
     return true;
+}
+
+bool NTPManager::connect() {
+    if (!m_initialised) {
+        m_lastError = ESP_ERR_INVALID_STATE;
+        return false;
+    }
+
+    if (tryConnect()) {
+        return true;
+    }
+
+    // The lab access point may be out of range - the Wokwi simulator for
+    // instance exposes an open network called "Wokwi-GUEST". Retry once with
+    // the fallback network before giving up on the NTP synchronisation.
+    if (m_settings.fallbackSsid != nullptr && m_settings.fallbackSsid[0] != '\0') {
+        ESP_LOGW(kTag, "SSID '%s' is unreachable, falling back to '%s'",
+                 m_settings.ssid ? m_settings.ssid : "", m_settings.fallbackSsid);
+        if (applyStationConfig(m_settings.fallbackSsid, m_settings.fallbackPassword) == ESP_OK) {
+            if (tryConnect()) {
+                return true;
+            }
+        }
+    }
+
+    ESP_LOGE(kTag, "no Wi-Fi network available - the clock keeps the RTC time");
+    return false;
 }
 
 bool NTPManager::syncTime() {

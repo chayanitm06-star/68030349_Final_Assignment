@@ -46,6 +46,17 @@ docs/REPORT.md  รายงานฉบับเต็ม
 
 6. (ทางเลือก) เทสต์บน PC: `bash test/host/run_host_tests.sh` — ไม่ต้องมี ESP-IDF
 
+## ทดสอบใน Wokwi
+
+1. ติดตั้ง extension **Wokwi for VS Code** (`wokwi.wokwi-vscode`) + **ESP-IDF** (`espressif.esp-idf-extension`)
+   แล้ว `F1` → *Wokwi: Request a new License* → กด *GET YOUR LICENSE* ในเบราว์เซอร์
+2. `idf.py set-target esp32` (ครั้งแรก) แล้ว `idf.py build` — **ต้อง build ก่อนเสมอ** เพราะ `wokwi.toml`
+   ชี้ไปที่ `build/flasher_args.json`
+3. `F1` → **Wokwi: Start Simulator** → เปิด Serial Monitor (115200) แก้โค้ดแล้ว build ใหม่ simulator จะ reload เอง
+
+ทางลัดแบบคำสั่งเดียว: `pip install idf-wokwi` + `WOKWI_CLI_TOKEN` แล้ว `idf.py wokwi` (ESP-IDF ≥ 6.0)
+รายละเอียดทุกวิธี + checklist + เรื่อง Wi-Fi/NTP อยู่ที่ [`docs/REPORT.md` หัวข้อ 5.4](docs/REPORT.md)
+
 ## ปุ่มควบคุม
 
 หน้าจอมี 4 โหมด: **CLOCK → ALARM → STOPWATCH → SET TIME** (หมุนวงด้วยปุ่ม MODE)
@@ -80,10 +91,11 @@ docs/REPORT.md  รายงานฉบับเต็ม
 | ค่า NTP epoch เทียบผิดสัญญาณ | `kNtpToUnixEpochDelta` เป็น `uint64` → ต้อง cast เป็น `int64` ก่อนเทียบ |
 | ปุ่ม/อุปกรณ์ใน `diagram.json` ต่อสายไม่ได้ | `diagram.json` ที่ให้มาในสเปกมีชื่อ part และชื่อขาผิด (`wokwi-esp32-devkit-v4`, `board-ds1307`, ขาปุ่ม `1.1`/`1.A`) → แก้เป็น `board-esp32-devkit-c-v4`, `wokwi-ds1307`, `board-ssd1306` และขาปุ่ม `1.l`/`2.l` (ชื่อขาจริงตามคู่มือ Wokwi) |
 | ปุ่มทับตัวบอร์ด ESP32 ในหน้า Wokwi | บอร์ด DevKit C V4 กว้าง 105 × สูง 214 px แต่สเปกวางปุ่มที่ `top: 150` → ย้ายชุดปุ่มลงใต้บอร์ด (`top: 280`) และย้าย RTC/OLED ไปด้านขวา (`left: 280`) |
+| Wokwi ต่อ Wi-Fi ไม่ได้ (SSID `iotexpo` ไม่มีในตัวจำลอง) | เพิ่ม SSID สำรอง `Wokwi-GUEST` (ไม่มีรหัส) ใน `main/ClockConfig.hpp` → ถ้าต่อหลักไม่สำเร็จจะสลับไปใช้อัตโนมัติ |
 | ไม่มี ESP-IDF/บอร์ดในเครื่องพัฒนา | เขียน ESP-IDF stub เองที่ `test/host/stubs/` (อ้างอิง header จริงของ v6.0) + ใช้ `python -m ziglang c++` เป็น host compiler |
 
 ## หมายเหตุ
 
 - โค้ดยังไม่ได้ถูก flash ลงฮาร์ดแวร์จริง (เครื่องพัฒนาไม่มี ESP-IDF และไม่มีบอร์ด) — การตรวจสอบทำได้ 2 ทางคือ host unit test และ type-check ด้วย stub ดังกล่าว
 - ค่าเริ่มต้นใช้ pin ปุ่มของ Dashboard (12/13/14/27); ชุด pin ของ Suite (18/19/4/5) อยู่ใน `wokwi/diagram-suite-pins.json`
-- ถ้าต้องการ sync NTP จริงใน Wokwi ให้เปลี่ยน SSID เป็น `Wokwi-GUEST` (รหัสว่าง) — ถ้าไม่ได้ระบบจะ fallback ไปใช้เวลาจาก RTC อัตโนมัติ
+- ถ้าต้องการ sync NTP จริงใน Wokwi ฟิร์มแวร์จะต่อ `iotexpo` ก่อน แล้วสลับไปใช้ `Wokwi-GUEST` (รหัสว่าง) ให้อัตโนมัติ — ถ้าเน็ตล่มจริงระบบจะ fallback ไปใช้เวลาจาก RTC

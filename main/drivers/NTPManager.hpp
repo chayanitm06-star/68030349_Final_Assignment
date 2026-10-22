@@ -32,6 +32,9 @@ public:
     struct Settings {
         const char* ssid{nullptr};
         const char* password{nullptr};
+        /** @brief Second network tried when the primary one is unreachable. */
+        const char* fallbackSsid{nullptr};
+        const char* fallbackPassword{nullptr};
         const char* primaryServer{nullptr};
         const char* secondaryServer{nullptr};
         uint32_t connectTimeoutMs{15000};
@@ -49,6 +52,9 @@ public:
 
     /** @brief Join the access point and wait until an IP address is assigned. */
     bool connect() override;
+
+    /** @brief Name of the access point the station is configured for. */
+    [[nodiscard]] const char* activeSsid() const noexcept { return m_activeSsid; }
 
     /** @brief Start the SNTP client and wait for a synchronised system time. */
     bool syncTime() override;
@@ -76,9 +82,16 @@ private:
     void handleWifiEvent(int32_t id, void* data);
     void handleIpEvent(int32_t id, void* data);
 
+    /** @brief Program the station configuration (SSID / password) into the driver. */
+    esp_err_t applyStationConfig(const char* ssid, const char* password);
+
+    /** @brief One connection attempt; returns false on timeout or driver error. */
+    bool tryConnect();
+
     Settings m_settings;
     esp_netif_t* m_staNetif{nullptr};
     EventGroupHandle_t m_events{nullptr};
+    const char* m_activeSsid{nullptr};
 
     bool m_initialised{false};
     bool m_wifiConnected{false};

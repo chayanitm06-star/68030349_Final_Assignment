@@ -66,6 +66,8 @@ SystemClock g_systemClock;
 // ---------------------------------------------------------------------------
 NTPManager g_ntp({Config::kWifiSsid,
                    Config::kWifiPassword,
+                   Config::kWifiFallbackSsid,
+                   Config::kWifiFallbackPassword,
                    Config::kNtpServer,
                    Config::kNtpServerFallback,
                    Config::kWifiConnectTimeoutMs,

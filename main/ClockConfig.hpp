@@ -64,6 +64,10 @@ inline constexpr uint8_t kBuzzerDutyPercent = 50;
 // ---------------------------------------------------------------------------
 inline constexpr const char* kWifiSsid = "iotexpo";
 inline constexpr const char* kWifiPassword = "12345678";
+// เครือข่ายสำรอง: ตัวจำลอง Wokwi เปิดเครือข่าย "Wokwi-GUEST" (ไม่มีรหัส) —
+// ถ้า SSID หลักติดต่อไม่ได้ ฟิร์มแวร์จะลองสลับไปใช้เครือข่ายนี้อัตโนมัติ
+inline constexpr const char* kWifiFallbackSsid = "Wokwi-GUEST";
+inline constexpr const char* kWifiFallbackPassword = "";
 inline constexpr const char* kNtpServer = "pool.ntp.org";
 inline constexpr const char* kNtpServerFallback = "time.nist.gov";
 inline constexpr int32_t kTimeZoneOffsetSeconds = 7 * 3600;  ///< ICT (UTC+7).

@@ -343,15 +343,71 @@ bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที�
 
 ### 5.4 Wokwi
 
-1. เปิด <https://wokwi.com> → เลือกโปรเจกต์ **ESP32** ภาษา **C++ / ESP‑IDF**
-2. วาง `diagram.json` (อยู่ที่รากโปรเจกต์แล้ว) ลงแท็บ `diagram.json` ของโปรเจกต์ใน Wokwi
-   ถ้าต้องการชุด pin แบบ Suite ให้ใช้ `wokwi/diagram-suite-pins.json` แทน
-3. อัปโหลดไฟล์โค้ดจาก `main/` (โครงสร้างตามหัวข้อ 8)
-4. กด **Start Simulation** แล้วเปิด Serial Monitor (115200)
+#### 5.4.1 ทางที่ 1 — Wokwi for VS Code (แนะนำสำหรับโปรเจกต์ ESP-IDF)
 
-> ถ้าใช้ **Wokwi for VS Code** หรือ **Wokwi CLI** ให้ใช้ `wokwi.toml` + `diagram.json` ที่รากโปรเจกต์
-> แล้วรัน `idf.py wokwi` (ESP‑IDF ≥ 6.0) หรือ `wokwi-cli .` — `wokwi.toml` จะชี้ไปที่
-> `build/flasher_args.json` ที่ `idf.py build` สร้างไว้
+1. ติดตั้ง extension 2 ตัวใน VS Code
+   * **Wokwi for VS Code** → `wokwi.wokwi-vscode`
+   * **ESP-IDF** → `espressif.esp-idf-extension` (v6)
+2. `F1` → **Wokwi: Request a new License** → กด *GET YOUR LICENSE* ในเบราว์เซอร์
+   (license ฟรีสำหรับงานส่ง/งานเรียน ใช้ได้กับโปรเจกต์ส่วนตัว)
+3. Build firmware ก่อนเสมอ เพราะ `wokwi.toml` ชี้ไปที่ไฟล์ที่ `idf.py build` สร้าง
+   ```bash
+   idf.py set-target esp32     # ครั้งแรกเท่านั้น (ต้องตรงกับบอร์ดใน diagram.json)
+   idf.py build
+   ```
+4. `F1` → **Wokwi: Start Simulator** → เปิดแท็บ Serial Monitor (115200)
+5. แก้โค้ดแล้วรัน `idf.py build` อีกครั้ง → simulator reload firmware ใหม่เอง
+
+> บอร์ดใน `diagram.json` คือ `board-esp32-devkit-c-v4` → ต้อง `idf.py set-target esp32`
+> ถ้า target ไม่ตรงกับบอร์ด firmware จะไม่บูต
+
+#### 5.4.2 ทางที่ 2 — `idf.py wokwi` (ESP-IDF ≥ 6.0)
+
+```bash
+pip install idf-wokwi
+# เอา API token จาก https://wokwi.com/dashboard/ci แล้วใส่ใน environment
+export WOKWI_CLI_TOKEN=<token>          # Windows: $env:WOKWI_CLI_TOKEN = "<token>"
+idf.py build && idf.py wokwi
+```
+
+ตัวเลือกเพิ่มเติมของ `idf.py wokwi`: `--diagram-file`, `--timeout`, `--expect-text`, `--fail-text`,
+`--expect-regex`, `--fail-regex` (ใช้ทำ smoke test ใน CI ได้ เช่น รอข้อความ `SSD1306 ready` ใน serial)
+
+#### 5.4.3 ทางที่ 3 — Wokwi CLI (เหมาะกับ CI)
+
+```bash
+curl -L https://wokwi.com/ci/install.sh | sh          # Linux / macOS
+iwr https://wokwi.com/ci/install.ps1 -useb | iex       # Windows PowerShell
+wokwi-cli .
+```
+
+ทั้ง 3 ทางใช้ `wokwi.toml` + `diagram.json` ชุดเดียวกันที่รากโปรเจกต์
+(`wokwi.toml` → `firmware = 'build/flasher_args.json'`, `elf = 'build/esp32_digital_clock.elf'`
+— ต้องเป็น flasher_args.json เพื่อให้ Wokwi โหลด bootloader + partition table + app พร้อมกัน
+เหมือน `idf.py flash`)
+
+#### 5.4.4 ทางที่ 4 — เว็บ wokwi.com (ทางเลือก)
+
+เปิด <https://wokwi.com> → โปรเจกต์ **ESP32 / C++ (ESP-IDF)** → แทนที่แท็บ `diagram.json`
+(อยู่ที่รากโปรเจกต์แล้ว) → อัปโหลดไฟล์จาก `main/` → **Start Simulation**
+ถ้าต้องการชุด pin แบบ Suite ให้ใช้ `wokwi/diagram-suite-pins.json` แทน
+
+#### 5.4.5 Checklist สิ่งที่ต้องทำให้ครบใน Wokwi
+
+| # | รายการ | วิธีตรวจ | ผ่านเมื่อ |
+|---|---|---|---|
+| 1 | I²C bus | Serial monitor | ขึ้น `I2C bus #0 ready (SDA=21, SCL=22, 400000 Hz)` |
+| 2 | RTC DS1307 | Serial monitor | ขึ้น `DS1307 ready, RTC time = ...` |
+| 3 | OLED SSD1306 | Serial monitor + หน้าจอ | ขึ้น `SSD1306 ready at 0x3C` และจอแสดงหน้า CLOCK |
+| 4 | ปุ่ม 4 ตัว | กดใน simulator หรือคีย์ `M`/`I`/`S`/`L` | หน้าจอเปลี่ยนตามหัวข้อ 5.4.6 · โหมดเปลี่ยนได้ |
+| 5 | Debounce | Wokwi จำลอง bounce ให้เอง | 1 ครั้งที่กด = 1 action เท่านั้น |
+| 6 | Long press | กดค้าง > 1 วินาที | MODE ค้าง = sync NTP · INC ค้าง = +5 |
+| 7 | Stopwatch + lap | หน้า STOPWATCH: SET เริ่ม/หยุด, LAP = lap | เวลาเดินแบบ µs และมีค่า lap |
+| 8 | Alarm + buzzer | ตั้งเวลาใกล้ถึง แล้วรอ | มีเสียงจาก piezo + ขึ้น `DS1307 calibrated from the network` (ถ้า sync ได้) |
+| 9 | NTP sync | รอ ~20 วินาที | ขึ้น `Wi-Fi connected, IP address: ...` และ `SNTP synchronised` |
+| 10 | Task ทั้ง 4 | Serial monitor | ขึ้นบรรทัด task ทั้ง 4 + `all tasks started, free heap = ...` |
+
+#### 5.4.6 พฤติกรรมปุ่ม
 
 | ปุ่ม | คีย์ลัด | การทำงาน |
 |---|---|---|
@@ -361,6 +417,16 @@ bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที�
 | LAP | `L` | STOPWATCH = บันทึก lap (ถ้าหยุดอยู่ = รีเซ็ต) · อื่น ๆ = ปิดเสียงปลุก |
 
 > คีย์ลัดผูกด้วย attribute `key` ใน `diagram.json` (ชุด Suite ใช้ `M` / `S` / `A` / `L` ตามชื่อปุ่มของสเปก Suite)
+
+#### 5.4.7 เรื่อง Wi-Fi / NTP ใน Wokwi
+
+* ตัวจำลอง Wokwi เปิดเครือข่ายจำลองชื่อ **`Wokwi-GUEST`** (เปิด / ไม่มีรหัส) และมีอินเทอร์เน็ตจริง
+* ฟิร์มแวร์ลองต่อ SSID หลัก `iotexpo` ก่อน (สำหรับบอร์ดจริงในห้องแล็บ) ถ้าไม่สำเร็จจะ
+  **สลับไปใช้ `Wokwi-GUEST` ให้อัตโนมัติ** → สังเกต log ว่า
+  `SSID 'iotexpo' is unreachable, falling back to 'Wokwi-GUEST'` (รอครั้งแรกประมาณ 15 วินาที)
+* ถ้าเน็ตล่มจริง (ไม่มีทั้ง 2 SSID) ขึ้น `no Wi-Fi network available - the clock keeps the RTC time`
+  และนาฬิกายังเดินต่อจากเวลาใน DS1307 ตามปกติ
+* ค่า SSID/รหัสผ่านอยู่ที่ `main/ClockConfig.hpp` (`kWifiSsid`, `kWifiFallbackSsid`) — จุดเดียวของโปรเจกต์
 
 ---
 
@@ -463,7 +529,7 @@ bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที�
 | Piezo buzzer | – | GPIO 25 (LEDC PWM 2.7 kHz) | `buzzer:2` (ขาบวก) / `buzzer:1` (ขาลบ) |
 | GND | – | GND.1 / GND.2 / GND.3 | — |
 | I²C bus | – | I²C #0 @ 400 kHz | — |
-| Wi‑Fi | – | STA `iotexpo` / `12345678` | — |
+| Wi‑Fi | – | STA `iotexpo` / `12345678` (สำรอง `Wokwi-GUEST` แบบไม่มีรหัส) | — |
 | NTP | – | `pool.ntp.org` (สำรอง `time.nist.gov`), TZ +7 ชม. | — |
 
 ---
@@ -575,6 +641,8 @@ bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที�
      `esp_netif_types.h`) — คอมไพล์ผ่านด้วย `-Wall -Wextra` โดยไม่มี warning
 2. **`test/host/stubs/` ไม่ใช่โค้ดจริงของ ESP‑IDF** เป็นเพียงตัวแทนเพื่อการตรวจสอบบน PC
    การ build จริงต้องใช้ ESP‑IDF v6 (`idf.py build`) ตามหัวข้อ 5
+   → **ครั้งแรกที่ `idf.py build` อาจเจอ error จาก API ที่ตรวจได้แค่ด้วย stub** ถ้าเจอให้ส่ง
+   ข้อความ error มาแก้ได้ทันที (log ของ ESP-IDF build จะระบุไฟล์และบรรทัดชัดเจน)
 3. **การเลือก pin** — ใช้ชุดของ Dashboard (12/13/14/27) เป็นค่าเริ่มต้น เพราะตรงกับชื่อปุ่มใน UI
    (`MODE / INC / SET / LAP`) และกับ `ClockConfig.hpp`; ชุดของ Suite มีไดอะแกรมสำรองให้
 4. **เวลาโซน** — โค้ดบวก offset +7 ชม. ในตัวเอง (ไม่ใช้ `TZ` ของ lwIP) เพื่อให้ผลการทดสอบ
@@ -583,6 +651,9 @@ bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที�
    (Wokwi จำลองการ bounce ของปุ่มไว้โดย default → เป็นการทดสอบ software debounce 50 ms ของโค้ดจริง)
 6. **`diagram.json` ในสเปก HTML ต้นฉบับใช้ไม่ได้จริง** — มีทั้งชื่อ part type ที่ไม่มีอยู่จริง
    (`wokwi-esp32-devkit-v4`, `board-ds1307`), ชื่อขาที่ไม่ถูกต้อง (`1.1`, `1.A`, `rtc:VCC`, `esp:GND`,
-   `esp:GND.4`) และวางปุ่มทับตัวบอร์ด ESP32 — ไดอะแกรมใน `wokwi/` ของโปรเจกต์นี้เขียนใหม่ทั้งหมด
+   `esp:GND.4`) และวางปุ่มทับตัวบอร์ด ESP32 — ไดอะแกรมในโปรเจกต์นี้เขียนใหม่ทั้งหมด
    ตามคู่มือ part ของ Wokwi (ดูรายละเอียดในหัวข้อ Step 6)
-7. **ไฟล์ HTML ต้นฉบับ** ยังคงอยู่ในรีโปเพื่อใช้อ้างอิงสเปก ตามเดิม
+7. **Wi-Fi ใน Wokwi** — ตัวจำลองใช้เครือข่าย `Wokwi-GUEST` (ไม่มีรหัส) ฟิร์มแวร์จึงต่อ `iotexpo`
+   ก่อน แล้วสลับมาใช้ `Wokwi-GUEST` อัตโนมัติเมื่อต่อหลักไม่สำเร็จ (รอ ~15 วินาทีครั้งแรก)
+   ถ้าไม่อยากรอให้แก้ `kWifiSsid` ใน `main/ClockConfig.hpp` เป็น `Wokwi-GUEST` ได้เลย
+8. **ไฟล์ HTML ต้นฉบับ** ยังคงอยู่ในรีโปเพื่อใช้อ้างอิงสเปก ตามเดิม
