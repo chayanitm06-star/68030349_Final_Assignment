@@ -14,6 +14,11 @@
  */
 #pragma once
 
+// <sys/time.h> must come first: inside "namespace Clock" an elaborated type
+// specifier such as "struct timeval" would otherwise declare a brand new
+// incomplete type "Clock::timeval" instead of referring to the POSIX one.
+#include <sys/time.h>
+
 #include <cstdint>
 #include <string>
 
@@ -74,7 +79,7 @@ public:
     [[nodiscard]] esp_err_t lastError() const noexcept { return m_lastError; }
 
     /** @brief lwIP SNTP callback (the API does not allow a user context). */
-    static void onSntpTimeSync(struct timeval* tv);
+    static void onSntpTimeSync(::timeval* tv);
 
 private:
     static void eventTrampoline(void* arg, esp_event_base_t base, int32_t id, void* data);

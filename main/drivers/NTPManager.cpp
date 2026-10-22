@@ -1,9 +1,13 @@
+// <sys/time.h> first, so that "::timeval" always refers to the POSIX type.
+#include <sys/time.h>
+
 #include "NTPManager.hpp"
 
 #include <cinttypes>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <type_traits>
 
 #include "esp_log.h"
 #include "esp_netif_sntp.h"
@@ -12,6 +16,15 @@
 #include "sdkconfig.h"
 
 namespace Clock {
+
+// Compile time guard against the "Clock::timeval" trap: the SNTP callback must
+// use the POSIX ::timeval exactly as esp_netif_sntp.h declares it. If the
+// <sys/time.h> include in NTPManager.hpp is ever dropped, "struct timeval"
+// inside this namespace silently declares a brand new Clock::timeval type and
+// this assertion reports the mismatch with a readable message.
+static_assert(std::is_same_v<decltype(&NTPManager::onSntpTimeSync), esp_sntp_time_cb_t>,
+              "NTPManager::onSntpTimeSync must match esp_sntp_time_cb_t (POSIX ::timeval)");
+
 namespace {
 
 constexpr const char* kTag = "NTP_MGR";
@@ -257,8 +270,8 @@ bool NTPManager::syncTime() {
         return false;
     }
 
-    const time_t now = ::time(nullptr);
-    if (now == static_cast<time_t>(-1)) {
+    const ::time_t now = ::time(nullptr);
+    if (now == static_cast<::time_t>(-1)) {
         m_lastError = ESP_ERR_INVALID_TIME;
         return false;
     }
@@ -284,7 +297,7 @@ std::string NTPManager::ipAddress() const {
     return std::string(text);
 }
 
-void NTPManager::onSntpTimeSync(struct timeval* tv) {
+void NTPManager::onSntpTimeSync(::timeval* tv) {
     if (tv == nullptr || s_activeInstance == nullptr) {
         return;
     }

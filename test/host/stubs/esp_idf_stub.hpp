@@ -537,34 +537,7 @@ enum wifi_event_t {
     WIFI_EVENT_STA_DISCONNECTED = 6,
 };
 
-// ---------------------------------------------------------------------------
-// esp_netif_sntp.h
-// ---------------------------------------------------------------------------
-#include <sys/time.h>
+// NOTE: the esp_netif_sntp.h API (including the "struct timeval" forward
+// declaration) lives in its own stub header, exactly like the real ESP-IDF,
+// where only esp_netif_sntp.h mentions that type.
 
-using esp_sntp_time_cb_t = void (*)(struct timeval* tv);
-
-struct esp_sntp_config {
-    bool smooth_sync;
-    bool server_from_dhcp;
-    bool wait_for_sync;
-    bool start;
-    esp_sntp_time_cb_t sync_cb;
-    bool renew_servers_after_new_ip;
-    ip_event_t ip_event_to_renew;
-    size_t index_of_first_server;
-    size_t num_of_servers;
-    const char* servers[3];
-};
-using esp_sntp_config_t = struct esp_sntp_config;
-
-inline esp_err_t esp_netif_sntp_init(const esp_sntp_config_t* config) {
-    (void)config;
-    return ESP_OK;
-}
-inline esp_err_t esp_netif_sntp_start() { return ESP_OK; }
-inline void esp_netif_sntp_deinit() {}
-inline esp_err_t esp_netif_sntp_sync_wait(TickType_t tout) {
-    (void)tout;
-    return ESP_OK;
-}

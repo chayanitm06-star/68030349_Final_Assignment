@@ -306,6 +306,7 @@ cd test/test_clock_core && idf.py set-target esp32 && idf.py build flash monitor
 | `test/host/host_test_main.cpp` + `unity_lite.*` | runner บน PC ที่ใช้ test body ชุดเดียวกับ target (Unity‑lite shim) |
 | `test/host/run_host_tests.sh` | สคริปต์ build + run เทสต์บน PC |
 | `test/host/typecheck_target.sh` | type‑check `main/main.cpp` + `core/` + `drivers/` ด้วย ESP‑IDF stub (ไม่ต้องมี ESP‑IDF ติดตั้ง) |
+| `test/host/check_timeval_include.py` | source‑level guard กันบั๊ก `struct Clock::timeval` (รันอัตโนมัติใน `typecheck_target.sh`) |
 | `test/host/stubs/` | stub ของ ESP‑IDF v6 API (`i2c_master`, `esp_netif`, `esp_netif_sntp`, `esp_wifi`, LEDC, FreeRTOS, Unity) — **ไม่ถูก compile เข้า firmware** |
 
 ---
@@ -336,7 +337,7 @@ idf.py build flash monitor
 
 ```bash
 bash test/host/run_host_tests.sh       # build + run 16 เคสของ domain layer
-bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที่พึ่ง ESP-IDF
+bash test/host/typecheck_target.sh     # type-check ทุกไฟล์ที่พึ่ง ESP-IDF + guard timeval
 ```
 
 > สคริปต์เลือก compiler อัตโนมัติ: `g++` → `clang++` → `python -m ziglang c++` (ติดตั้งด้วย `pip install ziglang`)
@@ -620,6 +621,7 @@ wokwi-cli .
 │       ├── unity_lite.hpp/.cpp        # Unity-lite shim
 │       ├── run_host_tests.sh          # build + run เทสต์
 │       ├── typecheck_target.sh        # type-check โค้ดฝั่ง ESP-IDF ด้วย stub
+│       ├── check_timeval_include.py   # guard กันบั๊ก "Clock::timeval"
 │       └── stubs/                     # ESP-IDF v6 API stub (ไม่เข้า firmware)
 │
 ├── docs/
@@ -657,3 +659,21 @@ wokwi-cli .
    ก่อน แล้วสลับมาใช้ `Wokwi-GUEST` อัตโนมัติเมื่อต่อหลักไม่สำเร็จ (รอ ~15 วินาทีครั้งแรก)
    ถ้าไม่อยากรอให้แก้ `kWifiSsid` ใน `main/ClockConfig.hpp` เป็น `Wokwi-GUEST` ได้เลย
 8. **ไฟล์ HTML ต้นฉบับ** ยังคงอยู่ในรีโปเพื่อใช้อ้างอิงสเปก ตามเดิม
+9. **`struct Clock::timeval` (bug ที่เจอตอน build จริง)** — ตอนเขียน callback ของ lwIP SNTP
+   เดิมใช้ `static void onSntpTimeSync(struct timeval* tv)` ภายใน `namespace Clock`
+   เมื่อไม่มี `<sys/time.h>` อยู่ก่อนจุดนั้น กฎ *elaborated type specifier* ของ C++ จะ
+   **ประกาศชนิดใหม่ชื่อ `Clock::timeval`** ขึ้นมาเอง (ไม่ใช่ `::timeval` ของ POSIX)
+   ทำให้ชนกับ `esp_sntp_time_cb_t` ที่ ESP-IDF ประกาศไว้ → error `struct Clock::timeval`
+   **วิธีแก้ (ทำไว้แล้วในรุ่นนี้)**
+   * `main/drivers/NTPManager.hpp` — `#include <sys/time.h>` ไว้ **บนสุดของไฟล์**
+     (ก่อน include อื่นทั้งหมด) และใช้ `::timeval*` แทน `struct timeval*`
+   * `main/drivers/NTPManager.cpp` — `#include <sys/time.h>` บนสุดไฟล์เช่นกัน,
+     ใช้ `::timeval*` / `::time_t` / `::time()` แบบ fully qualified
+   * เพิ่ม `static_assert` ใน `NTPManager.cpp` เทียบ `decltype(&NTPManager::onSntpTimeSync)`
+     กับ `esp_sntp_time_cb_t` → ถ้ามีคนลบ `<sys/time.h>` ออกไป จะได้ error ที่อ่านเข้าใจได้
+     แทน error ประเภทชนกันของ function pointer
+   * stub ฝั่ง host ถูกปรับให้ตรงกับ ESP-IDF จริงแล้ว (ประกาศ `struct timeval` ไว้เฉพาะใน
+     `test/host/stubs/esp_netif_sntp.h` ตามของจริง) และเพิ่ม
+     `test/host/check_timeval_include.py` เป็น source-level guard ที่รันอยู่ใน
+     `typecheck_target.sh` (เพราะ `<ctime>` ของ mingw ประกาศ `::timeval` ให้ทั้งโลก
+     ทำให้ type-check ฝั่ง PC มองไม่เห็นบั๊กนี้ได้)

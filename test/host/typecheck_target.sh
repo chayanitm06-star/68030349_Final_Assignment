@@ -54,6 +54,12 @@ if ! ${CXX} -std=c++17 -Wall -Wextra -Wno-nullability-completeness -c \
     status=1
 fi
 
+# Source level guard for the "Clock::timeval" trap (see the script header).
+echo "== checking the POSIX timeval usage"
+if ! python "${SCRIPT_DIR}/check_timeval_include.py"; then
+    status=1
+fi
+
 if [ "${status}" -eq 0 ]; then
     echo "== every ESP-IDF dependent source compiles cleanly"
 else
