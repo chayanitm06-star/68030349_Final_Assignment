@@ -114,10 +114,14 @@ void vTaskButtonHandler(void* /*arg*/) {
     ButtonEvent event{};
 
     while (true) {
-        // poll() drains the raw ISR queue, runs the debounce filter and
+        // poll() drains the raw ISR queue, samples the button levels (the
+        // fallback for a lost interrupt), runs the debounce filter and
         // returns the next debounced event.
-        if (g_buttons.poll(event, ButtonManager::kScanPeriodMs * 4)) {
-            ESP_LOGD(kTag, "button %d %s", static_cast<int>(event.id),
+        if (g_buttons.poll(event, ButtonManager::kScanPeriodMs * 2)) {
+            // INFO level on purpose: the log line is the only feedback the
+            // user gets from a button in the serial monitor of the Wokwi
+            // simulator (the default log level of ESP-IDF hides DEBUG).
+            ESP_LOGI(kTag, "button %d %s", static_cast<int>(event.id),
                      event.type == PressType::Long ? "long" : "short");
             g_controller.handleEvent(event);
         }

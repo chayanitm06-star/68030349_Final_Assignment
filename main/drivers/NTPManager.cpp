@@ -273,7 +273,7 @@ bool NTPManager::syncTime() {
 
     const ::time_t now = ::time(nullptr);
     if (now == static_cast<::time_t>(-1)) {
-        m_lastError = ESP_ERR_INVALID_TIME;
+        m_lastError = ESP_ERR_INVALID_STATE;
         return false;
     }
 

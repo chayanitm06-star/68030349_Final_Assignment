@@ -60,6 +60,15 @@ public:
     [[nodiscard]] QueueHandle_t queue() const noexcept { return m_queue; }
     [[nodiscard]] bool isInitialised() const noexcept { return m_initialised; }
 
+    /**
+     * @brief Read the current level of the pin (active low).
+     * @details The button task polls this value as a fallback for the
+     *          interrupt: the Wokwi simulator (and every real board with a
+     *          noisy key) can lose an edge, but the level is always correct.
+     * @return True while the button is pressed.
+     */
+    [[nodiscard]] bool isPressed() const noexcept;
+
     // --- Conversion helpers (also used by the unit tests) -------------------
     [[nodiscard]] static ButtonId toButtonId(ButtonType_t type) noexcept;
     [[nodiscard]] static ButtonType_t toButtonType(ButtonId id) noexcept;

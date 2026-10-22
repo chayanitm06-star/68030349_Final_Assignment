@@ -63,7 +63,17 @@ private:
     struct Slot {
         ButtonId id{ButtonId::Mode};
         DebounceFilter filter;
+        bool lastLevel{true};  ///< Last sampled level: true = released (pull-up).
     };
+
+    /**
+     * @brief Sample the level of every button and turn a level change into
+     *        an edge for the debounce filter.
+     * @details The interrupt is the fast path, the level is the safety net:
+     *          if an edge is lost (simulator, noisy key, disabled interrupt)
+     *          the button still reacts because the level is polled as well.
+     */
+    void sampleLevels();
 
     Slot m_slots[kButtonCount]{};
     ButtonDriver* m_drivers[kButtonCount]{};

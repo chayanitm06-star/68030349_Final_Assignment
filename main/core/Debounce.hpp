@@ -26,6 +26,16 @@ enum class PressType : uint8_t {
 
 /**
  * @brief Debounce filter for a single active-low push button.
+ *
+ * The filter rejects the bouncing of a mechanical contact: an edge that
+ * follows the previous one within @ref debounceMs is considered a bounce.
+ *
+ * A *release* edge inside that window is neither accepted nor dropped - it
+ * is **deferred** and confirmed by @ref update as soon as the window has
+ * passed without a new press edge. Without that rule a click that is
+ * shorter than the debounce window (a fast mouse click in the Wokwi
+ * simulator!) would be swallowed completely and the button would look
+ * broken.
  */
 class DebounceFilter {
 public:
@@ -70,6 +80,9 @@ private:
 
     uint32_t m_lastEdgeMs{0};
     bool m_hasLastEdge{false};
+
+    /** @brief A release edge that arrived inside the debounce window. */
+    bool m_pendingRelease{false};
 
     PressType m_pending{PressType::None};
 };

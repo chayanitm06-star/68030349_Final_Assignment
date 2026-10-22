@@ -86,8 +86,36 @@ esp_err_t ButtonManager::init() {
     return ESP_OK;
 }
 
+void ButtonManager::sampleLevels() {
+    const uint32_t now = nowMs();
+
+    for (uint8_t i = 0; i < kButtonCount; ++i) {
+        if (m_drivers[i] == nullptr) {
+            continue;
+        }
+
+        const bool pressed = m_drivers[i]->isPressed();
+        if (pressed == m_slots[i].lastLevel) {
+            continue;
+        }
+        m_slots[i].lastLevel = pressed;
+
+        // The filter ignores a duplicate edge that arrives within the
+        // debounce window, therefore the polled edge and the interrupt edge
+        // of the same physical transition do not disturb each other.
+        if (pressed) {
+            m_slots[i].filter.notifyPressEdge(now);
+        } else {
+            m_slots[i].filter.notifyReleaseEdge(now);
+        }
+    }
+}
+
 bool ButtonManager::poll(ButtonEvent& out, uint32_t timeoutMs) {
     ButtonEvent_t raw{};
+
+    // 0) Sample the levels - this is the fallback for a lost interrupt.
+    sampleLevels();
 
     // 1) Consume the raw edges produced by the interrupt handlers.
     while (xQueueReceive(m_rawQueue, &raw, 0) == pdTRUE) {
@@ -102,7 +130,7 @@ bool ButtonManager::poll(ButtonEvent& out, uint32_t timeoutMs) {
             continue;
         }
 
-        ++m_edgeCount;
+        m_edgeCount = m_edgeCount + 1;
 
         if (raw.pressed) {
             m_slots[slot].filter.notifyPressEdge(raw.timestamp);

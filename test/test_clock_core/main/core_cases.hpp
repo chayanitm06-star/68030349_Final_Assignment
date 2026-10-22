@@ -247,6 +247,24 @@ inline void Button_Software_Debounce_50ms_Filter() {
 
     TEST_ASSERT_EQUAL_UINT32(50, filter.debounceMs());
     TEST_ASSERT_EQUAL_UINT32(1000, filter.longPressMs());
+
+    // A very fast click (press and release inside the debounce window) must
+    // not be swallowed - this is what a mouse click in the Wokwi simulator
+    // looks like. The release is deferred and confirmed afterwards.
+    DebounceFilter fastFilter(50, 1000);
+    fastFilter.notifyPressEdge(2000);
+    fastFilter.notifyReleaseEdge(2010);  // only 10 ms -> deferred, not lost
+    TEST_ASSERT_TRUE(fastFilter.isPressed());
+    TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(PressType::None),
+                            static_cast<uint8_t>(fastFilter.takeEvent()));
+
+    // The debounce window has passed without a new press edge -> the
+    // release was real and is reported as a short press.
+    TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(PressType::Short),
+                            static_cast<uint8_t>(fastFilter.update(2050)));
+    TEST_ASSERT_FALSE(fastFilter.isPressed());
+    TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(PressType::None),
+                            static_cast<uint8_t>(fastFilter.takeEvent()));
 }
 
 /** @brief The display modes are cycled in a fixed order. */

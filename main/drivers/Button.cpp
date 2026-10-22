@@ -40,6 +40,12 @@ esp_err_t ButtonDriver::init() {
     return ESP_OK;
 }
 
+bool ButtonDriver::isPressed() const noexcept {
+    // Active low: the internal pull-up keeps the pin high until the button
+    // connects it to ground.
+    return gpio_get_level(m_pin) == 0;
+}
+
 void ButtonDriver::isrTrampoline(void* arg) {
     auto* self = static_cast<ButtonDriver*>(arg);
     if (self == nullptr || self->m_queue == nullptr) {
