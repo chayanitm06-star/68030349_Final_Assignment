@@ -113,12 +113,15 @@
 
 | Interface | ผู้ implement | หน้าที่ |
 |---|---|---|
-| `IRtcDevice` | `DS1307` | อ่าน/เขียนเวลา RTC |
-| `ITimeSource` | `SystemClock`, `EspTimerSource` | เวลา POSIX / มิลลิวินาทีแบบ monotonic |
+| `IRtcSource` | `DS1307` | อ่าน/เขียนเวลา RTC |
+| `ISystemClock` | `SystemClock` | อ่าน POSIX system clock (วินาทีนับจาก 1970) |
+| `ITimeSource` | `EspTimerSource` | มิลลิวินาทีแบบ monotonic (จาก `esp_timer`) |
 | `INtpClient` | `NTPManager` | ซิงก์เวลาจาก NTP |
-| `IDisplaySurface` | `SSD1306` | วาดภาพลง frame buffer + flush |
-| `IBuzzer` | `Buzzer` | เปิด/ปิดเสียง piezo |
-| `IButtonInput` | `ButtonManager` | ส่ง event ปุ่มที่ debounce แล้ว |
+| `IDisplay` | `SSD1306` | วาดภาพลง frame buffer + flush |
+| `IBuzzer` | `Buzzer` | เปิด/ปิดเสียง piezo (LEDC PWM) |
+
+> ปุ่มไม่ได้ผ่าน interface แต่ถูก *pull* โดย task โดยตรง (`ButtonManager::poll()`)
+> ส่วน `UiController` รับ `AlarmEngine` / `StopwatchEngine` / `TimeManager` ผ่าน dependency injection
 
 ---
 
